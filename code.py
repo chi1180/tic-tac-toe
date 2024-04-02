@@ -37,7 +37,7 @@ class TicTacToe(Frame):
                 # set inner text by selected turn
                 inner_text = self.turn_mark[self.board[c][r][1]]
 
-                # set clicked fundtion's arugument
+                # set clicked function's arugument
                 square_num = self.board[c][r][0]
 
                 square = Button(
