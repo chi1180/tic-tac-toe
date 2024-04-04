@@ -1,148 +1,120 @@
-
-###  tic-tac-toe game
-
+### tic-tac-toe game
 
 from tkinter import *
 from tkinter.messagebox import *
 
-class TicTacToe(Frame):
-    def __init__(self, master=None):
-        super().__init__(master)
 
-        self.master.title("tic tac toe game")
+class Board:
 
-        self.turn = 1
-        self.turn_mark = [ "", "!", "?" ]
-        self.turn_name = [ "first turn", "second turn" ]
+    def __init__(self, size=3):
+        self.size = size
+        self.clear()
 
-        self.setBoardData()
-        self.createBoardView()
+    def clear(self):
+        self.marks = [[""] * self.size for _ in range(self.size)]
 
-    def setBoardData(self):
-        self.board = []
-        square_num = 0
+    def __iter__(self):
+        return iter(self.marks)
 
-        for c in range(3):
-            self.board.append([])
+    def is_full(self):
+        return all(mark != "" for marks in self.marks for mark in marks)
 
-            for r in range(3):
-                square_num += 1
+    def is_putable(self, row, column):
+        return self.marks[row][column] == ""
 
-                square = [ square_num, 0 ]
-                self.board[c].append(square)
+    def put(self, row, column, mark):
+        self.marks[row][column] = mark
 
-    def createBoardView(self):
-        for c in range(3):
-            for r in range(3):
-                # set inner text by selected turn
-                inner_text = self.turn_mark[self.board[c][r][1]]
+    def has_line(self, mark):
+        line = [mark] * self.size
+        return (line in self.marks or
+                tuple(line) in zip(*self.marks) or
+                line == [marks[i] for i, marks in enumerate(self.marks)] or
+                line == [marks[i] for i, marks in enumerate(self.marks[::-1])])
 
-                # set clicked function's arugument
-                square_num = self.board[c][r][0]
 
-                square = Button(
-                    self.master,
-                    text=inner_text,
-                    command=lambda arug=square_num: self.squareClicked(arug),
-                    width=5,
-                    height=2,
-                    font=", 24")
+class BoardUI:  # Input/Output User Interface for Board
 
-                square.grid(row = c, column = r)
+    def __init__(self, board, put):
+        self.board = board
+        self.buttons = [[self._make_button(mark, put, row, column)
+                         for column, mark in enumerate(marks)]
+                        for row, marks in enumerate(board)]
 
-    def squareClicked(self, square_num):
-        for c in range(3):
-            for r in range(3):
-                # check selecting square's number is the argu's number
-                is_arug_square = self.board[c][r][0] == square_num
+    def _make_button(self, mark, put, row, column):
+        button = Button(text=mark,
+                        command=lambda: put(row, column),
+                        width=5,
+                        height=2,
+                        font=", 24")
+        button.grid(row=row, column=column)
+        return button
 
-                if is_arug_square:
-                    # check to is this square was selected
-                    selected = self.board[c][r][1]
+    def update(self):
+        for buttons, marks in zip(self.buttons, self.board):
+            for button, mark in zip(buttons, marks):
+                button["text"] = mark
 
-                    if selected:
-                        showinfo("against the rules", "This square has selected!\nYou must select to square that wasn't selected.")
-                    else:
-                        self.board[c][r][1] = self.turn
 
-                        self.createBoardView()
-                        self.turnToggleChange()
-                        self.winerCheck()
+class Player:
 
-    def turnToggleChange(self):
-        turn = self.turn
+    def __init__(self, name, mark):
+        self.name = name
+        self.mark = mark
 
-        if turn == 1:
-            self.turn = 2
+
+class TicTacToe:
+
+    def __init__(self, exit_):
+        self.exit = exit_
+        self.board = Board()
+        self.ui = BoardUI(self.board, self.put)
+        self.player1 = Player("first player", "O")
+        self.player2 = Player("seocnd player", "X")
+        self.turn = {self.player1: self.player2, self.player2: self.player1}
+
+    def play(self):
+        self.player = self.player1
+        self.board.clear()
+        self.ui.update()
+
+    def put(self, row, column):
+        if not self.board.is_putable(row, column):
+            showinfo("against the rules",
+                     "This square has selected!\n" +
+                     "You must select to square that wasn't selected.")
+            return
+        self.board.put(row, column, self.player.mark)
+        self.ui.update()
+        if self.board.has_line(self.player.mark):
+            self.win(self.player)
+        elif self.board.is_full():
+            self.draw()
         else:
-            self.turn = 1
+            self.player = self.turn[self.player]
 
-    def winerCheck(self):
-        winer = 0
+    def win(self, player):
+        showinfo("game end",
+                 f"This game's winer is {player.name}({player.mark})!")
+        self.ask_play_again()
 
-        # check row line and column line
-        for c in range(3):
-            is_row_selected_by_only_turn = self.board[c][0][1] == self.board[c][1][1] == self.board[c][2][1] and self.board[c][2][1]
-            is_column_selected_by_only_turn = self.board[0][c][1] == self.board[1][c][1] == self.board[2][c][1] and self.board[2][c][1]
+    def draw(self):
+        showinfo("game end", "This game is draw!")
+        self.ask_play_again()
 
-            if is_row_selected_by_only_turn:
-                winer = self.board[c][2][1]
-                break
-            elif is_column_selected_by_only_turn:
-                winer = self.board[2][c][1]
-                break
-
-        if winer:
-            self.showWiner(winer_num=winer)
+    def ask_play_again(self):
+        if askyesno("replay or exit", "Are you want to play again?"):
+            self.play()
         else:
-            # check x line
-            is_x_right_selected_by_only_turn = self.board[0][2][1] == self.board[1][1][1] == self.board[2][0][1] and self.board[2][0][1]
-            is_x_left_selected_by_only_turn = self.board[0][0][1] == self.board[1][1][1] == self.board[2][2][1] and self.board[2][2][1]
-
-            if is_x_right_selected_by_only_turn:
-                winer = self.board[2][0][1]
-            elif is_x_left_selected_by_only_turn:
-                winer = self.board[2][2][1]
-
-            if winer:
-                self.showWiner(winer_num=winer)
-            else:
-                # check is this drow
-                selected_count = 0
-
-                for c in range(3):
-                    for r in range(3):
-                        is_selected = self.board[c][r][1]
-
-                        if is_selected:
-                            selected_count += 1
-
-                if selected_count == 9:
-                    showinfo("game end", "This game is draw!")
-                    self.askPlayAgain()
+            self.exit()
 
 
-    def showWiner(self, winer_num):
-        message = "This game's winer is " + self.turn_name[winer_num - 1] + "!"
-        showinfo("game end", message)
-        self.askPlayAgain()
+def main():
+    root = Tk()
+    root.title("tic tac toe game")
+    game = TicTacToe(root.quit)
+    game.play()
+    root.mainloop()
 
-    def askPlayAgain(self):
-        message = "Are you want to play again?"
-        ask_replay = askyesno("replay or exit", message)
-
-        if ask_replay:
-            self.__init__(root)
-        else:
-            self.master.quit()
-
-
-
-
-# run
-root = Tk()
-frame = TicTacToe(root)
-frame.grid()
-
-root.mainloop()
-
+if __name__ == "__main__":
+    main()
